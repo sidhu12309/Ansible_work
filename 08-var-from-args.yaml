@@ -5,3 +5,4 @@
     - name: print the info
       ansible.builtin.debug:
         msg: "Hello {{ Name }}, good {{ Greetings }}"
+# ansible-playbook -i inventory.ini 08-var_from_args.yaml -e "Name=sidhu Greetings=Morning" -e ansible_user=devops -e ansible_password=DevOps@123
