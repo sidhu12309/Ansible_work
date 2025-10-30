@@ -1,0 +1,17 @@
+# ansible-playbook -i inventory.ini -e ansible_user=devops -e ansible_password=DevOps@123 -K 03-nginx-playbook.yaml
+  # ansible-playbook -i inventory.ini \
+  # -e ansible_user=devops \
+  # -e ansible_password=DevOps@123 \
+  # -e ansible_become_password=DevOps@123 \
+  # 03-nginx-playbook.yaml
+
+
+---
+- name: nginx installation
+  hosts: web
+  become: yes
+  tasks:
+    - name: install nginx server
+      ansible.builtin.package:
+        name: nginx
+        state: present
