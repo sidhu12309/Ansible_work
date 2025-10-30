@@ -1,0 +1,7 @@
+---
+- name: Ping server and Linux Hosts
+  hosts: web
+  tasks:
+  - name: Ping Linux Hosts
+    ansible.builtin.ping:
+      msg: "this is form ansinle play-01 and task-1"
