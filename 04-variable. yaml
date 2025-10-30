@@ -1,0 +1,12 @@
+---
+- name: varibale passing
+  hosts: web
+  vars:
+    Course: AWS DevOps
+    Duration: 120 Hrs
+    Trainer: sidhu
+  tasks:
+    - name: print the info
+      ansible.builtin.debug:
+        msg: "Hi, I am Learning {{ Course }} Duration: {{ Duration }} trainer: {{
+          Trainer }}"
