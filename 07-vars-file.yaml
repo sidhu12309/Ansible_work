@@ -1,0 +1,10 @@
+---
+- name: task level variable
+  hosts: web
+  var_files:
+   - vars.yaml
+  tasks: 
+   - name: print the info
+      ansible.builtin.debug:
+        msg: "Hi, I am Learning {{ Course }} Duration: {{ Duration }} trainer: {{
+          Trainer }}"
