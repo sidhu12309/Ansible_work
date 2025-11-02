@@ -1,0 +1,12 @@
+- name: loops reaptivity
+  hosts: web
+  become: yes
+  tasks:
+  - name: check the reapted name
+    ansible.builtin.debug:
+     msg: "hi This {{ item}} how are you guy's"
+    loop:
+    - sidhu
+    - ram
+    - pavan
+    - ss
