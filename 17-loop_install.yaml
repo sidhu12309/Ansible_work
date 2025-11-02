@@ -9,8 +9,8 @@
      name: "{{ item }}"
      state: present
     loop:
-    - mysql
+    - mysql-server
     - nginx
-    - httpd
-    - redis
-    - tomcat
+    - apache2
+    - redis-server
+    - tomcat10
