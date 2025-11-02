@@ -7,11 +7,11 @@
   - name: install software in loop helps
     ansible.builtin.package:
      name: "{{ item.name }}"
-     state: "{{ iteam.state }}"
+     state: "{{ item.state }}"
     loop:
-    - {name: "mysql-server" state: "present"}
-    - {name: "nginx" state: "present"}
-    -{name: "apache2" state: "present"}
-    -{name: "redis-server" state: "present"}
-    -{name: "tomcat10" state: "present"}
+    - {name: "mysql-server", state: "present"}
+    - {name: "nginx", state: "present"}
+    - {name: "apache2", state: "present"}
+    - {name: "redis-server", state: "present"}
+    - {name: "tomcat10", state: "present"}
     
