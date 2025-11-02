@@ -35,7 +35,7 @@
       course:
         name: "DevOps with AWS"
         duration: 120
-        trainer: "sivakumar reddy"
+        trainer: "Siddhartha reddy"
     ansible.builtin.debug:
       msg: "{{ course | dict2items }}"
 
@@ -44,7 +44,7 @@
       course:
       - { "key": "name","value": "DevOps with AWS" }
       - { "key": "duration","value": 120 }
-      - { "key": "trainer","value": "sivakumar reddy" }
+      - { "key": "trainer","value": "Siddhartha reddy" }
     ansible.builtin.debug:
       msg: "{{ course | items2dict }}"
 
