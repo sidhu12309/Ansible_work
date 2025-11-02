@@ -1,6 +1,7 @@
 ---
 - name: Check and create users if not exist
   hosts: web
+  gather_facts: yes
   become: yes
   tasks:
     - name: Check if 'expance' user exists
@@ -42,3 +43,6 @@
           - "devops user: {{ USER_info_devops }}"
           - "sidhu user: {{ USER_info_sidhu }}"
           - "expance user: {{ USER_info_expance }}"
+          - "OS Name: {{ ansible_distribution }}"
+          - "OS Version: {{ ansible_distribution_version }}"
+          - "Kernel: {{ ansible_kernel }}"
