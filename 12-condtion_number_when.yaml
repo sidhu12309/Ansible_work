@@ -1,0 +1,22 @@
+- name: this condtion check ansible playbook
+  hosts: localhost
+  connection: local
+  vars_prompt:
+  - name: number
+    prompt: please enter the number
+    private: false
+  tasks:
+  - name: print this if the number is less than 10
+    ansible.builtin.debug:
+     msg: "Give number {{ number }} is less than 10"
+    when: number | int < 10 # condtions expression
+  
+  - name: print if number is equal to 10 
+    ansible.builtin.debug:
+     msg: "the give number {{ number }} coorectly equal to 10"
+    when: number | int = 10 # condtions expression
+  
+  - name: print this if the number is greather than 10
+    ansible.builtin.debug:
+     msg: "Give number {{ number }} is less than 10"
+    when: number | int > 10 # condtions expression
