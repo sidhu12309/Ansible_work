@@ -1,0 +1,44 @@
+---
+- name: Check and create users if not exist
+  hosts: web
+  become: yes
+  tasks:
+    - name: Check if 'expance' user exists
+      ansible.builtin.command: id expance
+      register: USER_info_expance
+      ignore_errors: true
+    - name: Create 'expance' user if not exist
+      ansible.builtin.user:
+        name: expance
+        state: present
+        shell: /bin/bash
+        create_home: yes
+      when: USER_info_expance.rc != 0
+    - name: Check if 'sidhu' user exists
+      ansible.builtin.command: id sidhu
+      register: USER_info_sidhu
+      ignore_errors: true
+    - name: Create 'sidhu' user if not exist
+      ansible.builtin.user:
+        name: sidhu
+        state: present
+        shell: /bin/bash
+        create_home: yes
+      when: USER_info_sidhu.rc != 0
+    - name: Check if 'devops' user exists
+      ansible.builtin.command: id devops
+      register: USER_info_devops
+      ignore_errors: true
+    - name: Create 'devops' user if not exist
+      ansible.builtin.user:
+        name: devops
+        state: present
+        shell: /bin/bash
+        create_home: yes
+      when: USER_info_devops.rc != 0
+    - name: Print user information
+      ansible.builtin.debug:
+        msg:
+          - "devops user: {{ USER_info_devops }}"
+          - "sidhu user: {{ USER_info_sidhu }}"
+          - "expance user: {{ USER_info_expance }}"
