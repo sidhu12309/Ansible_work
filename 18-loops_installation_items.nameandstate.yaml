@@ -9,8 +9,9 @@
      name: "{{ item.name }}"
      state: "{{ iteam.state }}"
     loop:
-    - mysql-server
-    - nginx
-    - apache2
-    - redis-server
-    - tomcat10
+    - {name: "mysql-server" state: "present"}
+    - {name: "nginx" state: "present"}
+    -{name: "apache2" state: "present"}
+    -{name: "redis-server" state: "present"}
+    -{name: "tomcat10" state: "present"}
+    
