@@ -1,0 +1,16 @@
+---
+
+- name: install mysql and nginx also httpd, redis
+  hosts: web
+  become: yes
+  tasks:
+  - name: install software in loop helps
+    ansible.builtin.package:
+     name: "{{ item.name }}"
+     state: "{{ iteam.state }}"
+    loop:
+    - mysql-server
+    - nginx
+    - apache2
+    - redis-server
+    - tomcat10
