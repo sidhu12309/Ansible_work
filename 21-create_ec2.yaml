@@ -1,0 +1,38 @@
+---
+- name: Launch EC2 instances for MySQL, Backend, and Frontend
+  hosts: localhost
+  connection: local
+
+  vars:
+    instances:
+      - mysql-server
+      - backend-server
+      - frontend-server
+    subnet_id: "subnet-020ae62978b35a655"  # replace with your subnet id
+    sg_id: "sg-0eff5e4c12268737f"                       # you can use SG name or ID
+    ami_id: "ami-0415f9e4a0f58639f"
+    instance_type: "t3.small"
+    Environment: "dev"
+    Project: "Sidhu@project_ansible"
+    region: "us-east-1"                    #  Add your AWS region
+
+  tasks:
+    - name: Create EC2 instances (MySQL, Backend, Frontend)
+      amazon.aws.ec2_instance:
+        name: "{{ item }}"
+        region: "{{ region }}"              #  Important line
+        vpc_subnet_id: "{{ subnet_id }}"
+        instance_type: "{{ instance_type }}"
+        security_groups: ["{{ sg_id }}"]    #  fixed here
+        image_id: "{{ ami_id }}"
+        wait: true
+        tags:
+          Name: "{{ item }}"
+          Environment: "{{ Environment }}"
+          Project: "{{ Project }}"
+      loop: "{{ instances }}"
+      register: ec2_instance_output
+
+    - name: Print EC2 creation output
+      ansible.builtin.debug:
+        var: ec2_instance_output
