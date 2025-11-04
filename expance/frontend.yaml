@@ -1,0 +1,121 @@
+---
+- name: Configure frontend server for Expense App (Nginx + Expense UI)
+  hosts: frontend
+  become: yes
+
+  vars:
+    backend_public_ip: "3.93.169.144"   # ✅ Public IP of backend server
+
+  tasks:
+    # --------------------------------------------------------
+    # 1. Install dependencies
+    # --------------------------------------------------------
+    - name: Install Nginx and unzip
+      ansible.builtin.package:
+        name:
+          - nginx
+          - unzip
+        state: present
+
+    - name: Enable and start Nginx service
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    # --------------------------------------------------------
+    # 2. Prepare web root directory
+    # --------------------------------------------------------
+    - name: Remove default Nginx HTML directory
+      ansible.builtin.file:
+        path: /usr/share/nginx/html
+        state: absent
+
+    - name: Create HTML directory for Expense App
+      ansible.builtin.file:
+        path: /usr/share/nginx/html
+        state: directory
+        mode: '0755'
+        owner: www-data
+        group: www-data
+
+    # --------------------------------------------------------
+    # 3. Download and extract frontend build
+    # --------------------------------------------------------
+    - name: Download Expense frontend build (v2)
+      ansible.builtin.get_url:
+        url: https://expense-builds.s3.us-east-1.amazonaws.com/expense-frontend-v2.zip
+        dest: /tmp/frontend.zip
+        mode: '0644'
+
+    - name: Extract frontend build into Nginx HTML directory
+      ansible.builtin.unarchive:
+        src: /tmp/frontend.zip
+        dest: /usr/share/nginx/html
+        remote_src: yes
+        owner: www-data
+        group: www-data
+
+    # --------------------------------------------------------
+    # 4. Configure Nginx reverse proxy
+    # --------------------------------------------------------
+    - name: Remove default site if exists
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Deploy Nginx configuration for Expense App
+      ansible.builtin.copy:
+        dest: /etc/nginx/sites-available/expense
+        content: |
+          server {
+              listen 80;
+              server_name _;
+
+              root /usr/share/nginx/html;
+              index index.html;
+
+              location / {
+                  try_files $uri /index.html;
+              }
+
+              location /api/ {
+                  proxy_pass http://{{ backend_public_ip }}:8080/;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection 'upgrade';
+                  proxy_set_header Host $host;
+                  proxy_cache_bypass $http_upgrade;
+              }
+
+              location /health {
+                  stub_status on;
+                  access_log off;
+              }
+          }
+        mode: '0644'
+
+    - name: Enable Expense Nginx site
+      ansible.builtin.file:
+        src: /etc/nginx/sites-available/expense
+        dest: /etc/nginx/sites-enabled/expense
+        state: link
+
+    # --------------------------------------------------------
+    # 5. Restart Nginx
+    # --------------------------------------------------------
+    - name: Restart Nginx service
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+
+    # --------------------------------------------------------
+    # 6. Deployment summary
+    # --------------------------------------------------------
+    - name: Display frontend deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "✅ Frontend deployed successfully!"
+          - "Frontend served by Nginx on port 80"
+          - "Proxying API requests to backend: http://{{ backend_public_ip }}:8080/"
+          - "Access app via: http://<frontend_public_ip>/"
