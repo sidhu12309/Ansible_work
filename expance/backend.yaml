@@ -1,0 +1,118 @@
+---
+- name: Configure backend server for Expense app (Ubuntu + Public MySQL)
+  hosts: backend
+  become: yes
+  vars:
+    mysql_root_password: "ExpenseApp@1"
+    mysql_public_ip: "34.224.214.45"  # Public IP of MySQL server
+
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required dependencies
+      ansible.builtin.apt:
+        name:
+          - curl
+          - software-properties-common
+          - unzip
+          - mysql-client
+        state: present
+
+    - name: Add Node.js 20 repository
+      ansible.builtin.shell: |
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+      args:
+        executable: /bin/bash
+
+    - name: Install Node.js 20
+      ansible.builtin.apt:
+        name: nodejs
+        state: present
+
+    - name: Ensure 'expense' user exists
+      ansible.builtin.user:
+        name: expense
+        state: present
+        create_home: yes
+        shell: /bin/bash
+
+    - name: Create /app directory
+      ansible.builtin.file:
+        path: /app
+        state: directory
+        owner: expense
+        group: expense
+        mode: '0755'
+
+    # Ensure ownership & perms are correct BEFORE npm install
+    - name: Ensure /app ownership and permissions (recursive)
+      ansible.builtin.file:
+        path: /app
+        state: directory
+        owner: expense
+        group: expense
+        recurse: yes
+        mode: '0775'
+
+    - name: Download backend code
+      ansible.builtin.get_url:
+        url: https://expense-builds.s3.us-east-1.amazonaws.com/expense-backend-v2.zip
+        dest: /tmp/backend.zip
+        mode: '0644'
+
+    - name: Extract backend code
+      ansible.builtin.unarchive:
+        src: /tmp/backend.zip
+        dest: /app
+        remote_src: yes
+        owner: expense
+        group: expense
+
+    # Run npm install as root (avoids become_user temp-file problem),
+    # but /app is owned by expense so runtime user is correct.
+    - name: Install NodeJS dependencies (run as root)
+      ansible.builtin.command: npm install
+      args:
+        chdir: /app
+      environment:
+        HOME: /root
+
+    - name: Copy backend systemd service
+      ansible.builtin.copy:
+        src: backend.service
+        dest: /etc/systemd/system/backend.service
+        mode: '0644'
+
+    - name: Wait for MySQL to be available (public IP)
+      ansible.builtin.wait_for:
+        host: "{{ mysql_public_ip }}"
+        port: 3306
+        delay: 5
+        timeout: 120
+        state: started
+
+    - name: Import MySQL schema (using public IP)
+      ansible.builtin.shell: |
+        mysql -h {{ mysql_public_ip }} -u root -p'{{ mysql_root_password }}' < /app/schema/backend.sql
+      args:
+        executable: /bin/bash
+      register: mysql_import
+      failed_when: mysql_import.rc != 0 and "Table already exists" not in mysql_import.stderr
+      changed_when: "'ERROR' not in mysql_import.stderr"
+
+    - name: Reload and start backend service
+      ansible.builtin.systemd:
+        daemon_reload: true
+        name: backend
+        state: restarted
+        enabled: yes
+
+    - name: Display backend setup summary
+      ansible.builtin.debug:
+        msg:
+          - "✅ Backend deployed successfully"
+          - "MySQL Host (Public): {{ mysql_public_ip }}"
+          - "Service: backend"
