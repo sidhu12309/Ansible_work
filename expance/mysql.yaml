@@ -1,25 +1,48 @@
 ---
-- name: MySQL server setup using Ansible (no galaxy modules)
+# ============================================================
+# PLAY: MySQL SERVER SETUP (Database Tier)
+# ============================================================
+- name: MySQL server setup and remote configuration
   hosts: mysql
   become: yes
   vars:
     mysql_root_password: "ExpenseApp@1"
-    mysql_public_ip: "34.224.214.45"
-    mysql_private_ip: "172.31.24.47"
+    mysql_backend_public_ip: "34.224.214.45"  # Public IP of backend server
 
   tasks:
-    - name: Install MySQL server
+    # --------------------------------------------------------
+    # 1. Install required packages
+    # --------------------------------------------------------
+    - name: Install required packages
       ansible.builtin.package:
-        name: mysql-server
+        name:
+          - mysql-server
+          - python3
+          - python3-pip
         state: present
 
+    # --------------------------------------------------------
+    # 2. Install PyMySQL (with PEP 668 override for Python 3.12)
+    # --------------------------------------------------------
+    - name: Install PyMySQL (for Ansible MySQL modules)
+      ansible.builtin.pip:
+        name: PyMySQL
+        extra_args: --break-system-packages
+        executable: pip3
+
+    # --------------------------------------------------------
+    # 3. Enable and start MySQL service
+    # --------------------------------------------------------
     - name: Enable and start MySQL service
       ansible.builtin.service:
         name: mysql
         state: started
         enabled: yes
 
-    - name: Allow MySQL remote connections (update bind-address)
+    # --------------------------------------------------------
+    # 4. Allow MySQL to listen on all interfaces
+    # --------------------------------------------------------
+    - name: Allow MySQL to listen on all interfaces
       ansible.builtin.lineinfile:
         path: /etc/mysql/mysql.conf.d/mysqld.cnf
         regexp: '^bind-address'
@@ -27,31 +50,69 @@
         backup: yes
       notify: Restart MySQL
 
-    - name: Set MySQL root password and enable remote access
+    # --------------------------------------------------------
+    # 5. Check if MySQL root login works without password
+    # --------------------------------------------------------
+    - name: Check if MySQL root login works without password
+      ansible.builtin.shell: mysql -u root -e "SELECT 1;"
+      args:
+        executable: /bin/bash
+      register: root_no_pass
+      ignore_errors: yes
+
+    # --------------------------------------------------------
+    # 6. Configure MySQL root password (first-time setup)
+    # --------------------------------------------------------
+    - name: Configure MySQL root password and remote access (no password yet)
       ansible.builtin.shell: |
         mysql -u root <<EOF
         ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '{{ mysql_root_password }}';
-        CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY '{{ mysql_root_password }}';
-        GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
+        CREATE USER IF NOT EXISTS 'root'@'{{ mysql_backend_public_ip }}' IDENTIFIED BY '{{ mysql_root_password }}';
+        GRANT ALL PRIVILEGES ON *.* TO 'root'@'{{ mysql_backend_public_ip }}' WITH GRANT OPTION;
         FLUSH PRIVILEGES;
         EOF
       args:
         executable: /bin/bash
+      when: root_no_pass.rc == 0
+
+    # --------------------------------------------------------
+    # 7. Configure MySQL remote access (if password already set)
+    # --------------------------------------------------------
+    - name: Configure MySQL root and remote access (password already set)
+      ansible.builtin.shell: |
+        mysql -u root -p'{{ mysql_root_password }}' <<EOF
+        CREATE USER IF NOT EXISTS 'root'@'{{ mysql_backend_public_ip }}' IDENTIFIED BY '{{ mysql_root_password }}';
+        GRANT ALL PRIVILEGES ON *.* TO 'root'@'{{ mysql_backend_public_ip }}' WITH GRANT OPTION;
+        FLUSH PRIVILEGES;
+        EOF
+      args:
+        executable: /bin/bash
+      when: root_no_pass.rc != 0
       ignore_errors: yes
 
-    - name: Restart MySQL service after configuration
+    # --------------------------------------------------------
+    # 8. Restart MySQL
+    # --------------------------------------------------------
+    - name: Restart MySQL service
       ansible.builtin.service:
         name: mysql
         state: restarted
 
-    - name: Display connection details
+    # --------------------------------------------------------
+    # 9. Display connection info
+    # --------------------------------------------------------
+    - name: Display connection info
       ansible.builtin.debug:
         msg:
-          - "MySQL Public IP: {{ mysql_public_ip }}"
-          - "MySQL Private IP: {{ mysql_private_ip }}"
+          - "✅ MySQL setup complete"
+          - "Allowed remote public IP: {{ mysql_backend_public_ip }}"
           - "Root password: {{ mysql_root_password }}"
-          - "Remote access: ENABLED (bind-address = 0.0.0.0)"
-  
+          - "Bind address: 0.0.0.0 (open for remote access)"
+          - "Access example: mysql -h <MYSQL_PUBLIC_IP> -u root -p{{ mysql_root_password }}"
+
+  # --------------------------------------------------------
+  # Handlers
+  # --------------------------------------------------------
   handlers:
     - name: Restart MySQL
       ansible.builtin.service:
