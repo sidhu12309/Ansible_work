@@ -1,10 +1,11 @@
 ---
-- name: mysql-server setup using ansible
+- name: MySQL server setup using Ansible (no galaxy modules)
   hosts: mysql
   become: yes
   vars:
     mysql_root_password: "ExpenseApp@1"
-    login_host: "34.224.214.45"
+    mysql_public_ip: "34.224.214.45"
+    mysql_private_ip: "172.31.24.47"
 
   tasks:
     - name: Install MySQL server
@@ -18,14 +19,41 @@
         state: started
         enabled: yes
 
-    - name: Gather MySQL server information
-      community.mysql.mysql_info:
-        login_user: root
-        login_password: "{{ mysql_root_password }}"
-        login_host: "{{ login_host }}"
-      register: mysql_info
-      ignore_errors: true
+    - name: Allow MySQL remote connections (update bind-address)
+      ansible.builtin.lineinfile:
+        path: /etc/mysql/mysql.conf.d/mysqld.cnf
+        regexp: '^bind-address'
+        line: 'bind-address = 0.0.0.0'
+        backup: yes
+      notify: Restart MySQL
 
-    - name: Display MySQL info
+    - name: Set MySQL root password and enable remote access
+      ansible.builtin.shell: |
+        mysql -u root <<EOF
+        ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '{{ mysql_root_password }}';
+        CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY '{{ mysql_root_password }}';
+        GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
+        FLUSH PRIVILEGES;
+        EOF
+      args:
+        executable: /bin/bash
+      ignore_errors: yes
+
+    - name: Restart MySQL service after configuration
+      ansible.builtin.service:
+        name: mysql
+        state: restarted
+
+    - name: Display connection details
       ansible.builtin.debug:
-        var: mysql_info
+        msg:
+          - "MySQL Public IP: {{ mysql_public_ip }}"
+          - "MySQL Private IP: {{ mysql_private_ip }}"
+          - "Root password: {{ mysql_root_password }}"
+          - "Remote access: ENABLED (bind-address = 0.0.0.0)"
+  
+  handlers:
+    - name: Restart MySQL
+      ansible.builtin.service:
+        name: mysql
+        state: restarted
